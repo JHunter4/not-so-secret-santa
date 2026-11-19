@@ -2,6 +2,9 @@
 export const VERIFICATION = {
   motherBirthday: { month: 10, day: 15 }, // October 15
   thursdayFood: ['stew peas'],
+  shirtColour: ['purple'],
+  // Last 3 digits of the Not So Secret Santa's monitor Device ID.
+  monitorLast3: '653',
   favouriteTime: ['christmas', 'xmas'],
   rescueTarget: {
     words: ['ECONOMIC', 'ANALYST'],

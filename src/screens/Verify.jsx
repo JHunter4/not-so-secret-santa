@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { VERIFICATION } from '../config.js';
 
-const TOTAL_QUESTIONS = 4;
+const TOTAL_QUESTIONS = 6;
 
 const WRONG_MESSAGES = [
   'Nope. That answer is more suspicious than this link.',
@@ -15,6 +15,8 @@ const SCAN_MESSAGES = [
   'Checking criminal records...',
   "Consulting Santa's naughty list...",
   'Cross-referencing Thursday lunch habits...',
+  'Confirming shirt colour from across the floor...',
+  'Reading the last digits on that monitor...',
   'Verifying Christmas eligibility...',
 ];
 const FINAL_MESSAGE = 'Identity questionable. Access granted anyway. ✅';
@@ -101,15 +103,28 @@ export default function Verify({ onNext }) {
         <div key={`${round}-${step}`} className="step-forward">
           {step === 0 && <BirthdayQuestion onCorrect={advance} />}
           {step === 1 && <ThursdayQuestion onCorrect={advance} />}
-          {step === 2 && <FireQuestion onCorrect={advance} onBurned={burn} />}
-          {step === 3 && <ChristmasQuestion onCorrect={advance} />}
+          {step === 2 && <ShirtQuestion onCorrect={advance} />}
+          {step === 3 && <MonitorQuestion onCorrect={advance} />}
+          {step === 4 && <FireQuestion onCorrect={advance} onBurned={burn} />}
+          {step === 5 && <ChristmasQuestion onCorrect={advance} />}
         </div>
       </div>
     </section>
   );
 }
 
-function QuestionCard({ number, title, note, error, shakeKey, onSubmit, submitLabel, children, tone = 'terminal' }) {
+function QuestionCard({
+  number,
+  title,
+  note,
+  preamble,
+  error,
+  shakeKey,
+  onSubmit,
+  submitLabel,
+  children,
+  tone = 'terminal',
+}) {
   const fire = tone === 'fire';
   return (
     <form
@@ -125,6 +140,11 @@ function QuestionCard({ number, title, note, error, shakeKey, onSubmit, submitLa
           : 'border-terminal/25 bg-black/60'
       }`}
     >
+      {preamble && (
+        <p className="mb-4 rounded-lg border border-terminal/25 bg-terminal/10 px-4 py-3 text-sm leading-relaxed text-emerald-50">
+          {preamble}
+        </p>
+      )}
       <p className={`font-mono text-xs font-semibold ${fire ? 'text-orange-300/80' : 'text-terminal/50'}`}>
         [{String(number).padStart(2, '0')}]
       </p>
@@ -257,11 +277,14 @@ function TextQuestion({
   number,
   title,
   note,
+  preamble,
   placeholder,
   check,
   onCorrect,
   submitLabel = 'Verify →',
   inputMode,
+  maxLength = 60,
+  transform,
   wrongMessage,
   emptyMessage = 'Silence is suspicious. Type something.',
 }) {
@@ -282,6 +305,7 @@ function TextQuestion({
       number={number}
       title={title}
       note={note}
+      preamble={preamble}
       error={error}
       shakeKey={shakeKey}
       onSubmit={submit}
@@ -290,12 +314,13 @@ function TextQuestion({
       <input
         type="text"
         inputMode={inputMode}
-        maxLength={60}
+        maxLength={maxLength}
         autoFocus
         placeholder={placeholder}
         value={value}
         onChange={(e) => {
-          setValue(e.target.value);
+          const next = transform ? transform(e.target.value) : e.target.value;
+          setValue(next);
           clear();
         }}
         className={inputClass}
@@ -317,10 +342,47 @@ function ThursdayQuestion({ onCorrect }) {
   );
 }
 
-function ChristmasQuestion({ onCorrect }) {
+function ShirtQuestion({ onCorrect }) {
+  return (
+    <TextQuestion
+      number={3}
+      preamble="I feel like you sit at your desk too much. Let's do some walking..."
+      title="What colour shirt is your Not So Secret Santa wearing today?"
+      placeholder="Look across the room."
+      check={(v) => matchesAny(v, VERIFICATION.shirtColour)}
+      onCorrect={onCorrect}
+      wrongMessage="Wrong colour. Take another walk and look again."
+    />
+  );
+}
+
+function MonitorQuestion({ onCorrect }) {
+  const expected = VERIFICATION.monitorLast3;
   return (
     <TextQuestion
       number={4}
+      title="What are the last 3 numbers on your Not So Secret Santa's monitor?"
+      note="The last 3 digits of the Device ID."
+      placeholder="000"
+      inputMode="numeric"
+      maxLength={3}
+      transform={(v) => v.replace(/\D/g, '').slice(0, 3)}
+      check={(v) => /^\d{3}$/.test(v) && (expected == null || v === String(expected))}
+      onCorrect={onCorrect}
+      emptyMessage="Three digits. The monitor is right there."
+      wrongMessage={
+        expected == null
+          ? 'Enter exactly 3 digits from the Device ID.'
+          : "Those aren't the last 3. Check the Device ID on the monitor."
+      }
+    />
+  );
+}
+
+function ChristmasQuestion({ onCorrect }) {
+  return (
+    <TextQuestion
+      number={6}
       title="What is our favourite time of the year?"
       note="Choose wisely. The Christmas spirit is listening."
       placeholder="Hint: there's a tree involved 🎄"
@@ -444,7 +506,7 @@ function FireQuestion({ onCorrect, onBurned }) {
         </div>
 
         <QuestionCard
-          number={3}
+          number={5}
           title="QUICK! TAJ is on fire 🔥 and you can only save ONE person. Who would it be?"
           note="Fill in the blank boxes before the timer hits zero, or you start over. Three letters are free. You're welcome."
           error={error}
